@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEON ARENA</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080d18;color:#eef4ff;font-family:system-ui,sans-serif;overflow:hidden}
+#game{display:block;width:100vw;height:100vh;background:#0b1422;cursor:crosshair}
+.hud{position:fixed;top:16px;left:16px;display:flex;gap:10px;flex-wrap:wrap;pointer-events:none}
+.pill{background:#111e31dd;border:1px solid #2b4261;border-radius:12px;padding:9px 13px;font-size:14px}
+#help{position:fixed;bottom:16px;left:16px;background:#111e31dd;border:1px solid #2b4261;border-radius:12px;padding:10px 14px;font-size:13px;line-height:1.7;color:#b9c9df}
+#shopBtn{position:fixed;top:16px;right:16px;border:0;border-radius:12px;padding:12px 18px;background:#54e0c1;color:#07131c;font-weight:800;cursor:pointer}
+#shop{display:none;position:fixed;inset:0;background:#050914dd;align-items:center;justify-content:center;padding:18px}
+.panel{width:min(680px,100%);background:#101c30;border:1px solid #355071;border-radius:18px;padding:22px;box-shadow:0 20px 80px #0009}
+.panel h2{margin:0 0 6px}.muted{color:#9fb1ca;font-size:14px}.items{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:18px 0}
+.item{background:#172842;border:1px solid #38516f;border-radius:13px;padding:14px}.item h3{margin:0 0 7px;font-size:16px}.item p{min-height:40px;color:#aebed2;font-size:13px}.item button,.close{border:0;border-radius:9px;padding:9px 12px;font-weight:700;cursor:pointer;background:#54e0c1;color:#07131c}.close{background:#d5e1f2}
+#toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:#142943;border:1px solid #45617e;padding:9px 16px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="hud">
+ <div class="pill">✦ 에너지 크레딧: <b id="credits">300</b></div>
+ <div class="pill">라운드 <b id="round">1</b></div>
+ <div class="pill">점수 <b id="score">0</b></div>
+ <div class="pill">장착: <b id="gear">기본 블래스터</b></div>
+</div>
+<button id="shopBtn">상점 (B)</button>
+<div id="help">이동: WASD / 방향키 &nbsp; 조준: 마우스<br>에너지 발사: 클릭 또는 스페이스<br>정밀 모드: C 키를 누르고 있기<br>움직이며 발사하면 탄이 넓게 퍼져요!</div>
+<div id="toast"></div>
+<div id="shop"><div class="panel">
+ <h2>에너지 장비 상점</h2><div class="muted">획득한 크레딧으로 장비를 구매하세요. 장비는 가상의 게임 아이템입니다.</div>
+ <div class="items">
+  <div class="item"><h3>⚡ 펄스 코어</h3><p>에너지 탄의 속도가 빨라집니다.</p><b>150 크레딧</b><br><button data-buy="speed">구매</button></div>
+  <div class="item"><h3>✧ 안정화 모듈</h3><p>멈춰 있거나 정밀 모드일 때 탄 퍼짐이 더 줄어듭니다.</p><b>200 크레딧</b><br><button data-buy="focus">구매</button></div>
+  <div class="item"><h3>◈ 확장 배터리</h3><p>연속 발사 간격이 짧아집니다.</p><b>180 크레딧</b><br><button data-buy="rapid">구매</button></div>
+ </div>
+ <button class="close" id="closeShop">게임으로 돌아가기</button>
+</div></div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight,dpr=Math.min(devicePixelRatio||1,2);
+function resize(){W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+const keys={},mouse={x:W/2,y:H/2,down:false};
+const player={x:W/2,y:H/2,r:15,speed:3.2,crouch:false};
+let shots=[],targets=[],particles=[],credits=300,score=0,round=1,gear='기본 블래스터';
+let upgrades={speed:false,focus:false,rapid:false},lastShot=0,shopOpen=false;
+const $=id=>document.getElementById(id);
+function hud(){$('credits').textContent=credits;$('score').textContent=score;$('round').textContent=round;$('gear').textContent=gear}
+function toast(s){$('toast').textContent=s;$('toast').style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>$('toast').style.opacity=0,1300)}
+function spawn(){targets=[];for(let i=0;i<Math.min(3+round,9);i++){let a=Math.random()*Math.PI*2,dist=170+Math.random()*Math.min(W,H)*.27;targets.push({x:Math.max(45,Math.min(W-45,player.x+Math.cos(a)*dist)),y:Math.max(45,Math.min(H-45,player.y+Math.sin(a)*dist)),r:18,hp:1,phase:Math.random()*6})}}
+spawn();hud();
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault();if(e.key.toLowerCase()==='b')toggleShop();if(e.key===' ')fire()});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+canvas.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});
+canvas.addEventListener('mousedown',()=>{mouse.down=true;fire()});addEventListener('mouseup',()=>mouse.down=false);
+function toggleShop(force){shopOpen=force===undefined?!shopOpen:force;$('shop').style.display=shopOpen?'flex':'none'}
+$('shopBtn').onclick=()=>toggleShop();$('closeShop').onclick=()=>toggleShop(false);
+document.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{let k=b.dataset.buy,cost={speed:150,focus:200,rapid:180}[k];if(upgrades[k])return toast('이미 보유한 장비예요.');if(credits<cost)return toast('크레딧이 부족해요.');credits-=cost;upgrades[k]=true;if(k==='speed')gear='펄스 코어';if(k==='focus')gear='안정화 모듈';if(k==='rapid')gear='확장 배터리';hud();toast('장비를 구매했어요!')});
+function fire(){if(shopOpen)return;let now=performance.now(),delay=upgrades.rapid?170:280;if(now-lastShot<delay)return;lastShot=now;
+ let dx=mouse.x-player.x,dy=mouse.y-player.y,base=Math.atan2(dy,dx),moving=keys.w||keys.a||keys.s||keys.d||keys.arrowup||keys.arrowdown||keys.arrowleft||keys.arrowright;
+ let spread=player.crouch?.012:(moving?.23:.055);if(upgrades.focus)spread*=player.crouch?.35:.62;
+ let angle=base+(Math.random()-.5)*spread*2,speed=upgrades.speed?10:7;
+ shots.push({x:player.x,y:player.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:65});
+}
+function burst(x,y){for(let i=0;i<9;i++){let a=Math.random()*Math.PI*2,s=1+Math.random()*3;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:24})}}
+function update(){
+ if(shopOpen)return;
+ let mx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),my=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);
+ let moving=mx!==0||my!==0;player.crouch=!!keys.c;
+ if(moving){let l=Math.hypot(mx,my);player.x+=mx/l*player.speed*(player.crouch?.48:1);player.y+=my/l*player.speed*(player.crouch?.48:1)}
+ player.x=Math.max(22,Math.min(W-22,player.x));player.y=Math.max(22,Math.min(H-22,player.y));
+ if(mouse.down)fire();
+ shots.forEach(s=>{s.x+=s.vx;s.y+=s.vy;s.life--;for(let i=targets.length-1;i>=0;i--){let t=targets[i];if(Math.hypot(s.x-t.x,s.y-t.y)<t.r){targets.splice(i,1);s.life=0;score+=100;credits+=35;burst(t.x,t.y);hud();break}}});
+ shots=shots.filter(s=>s.life>0&&s.x>-20&&s.x<W+20&&s.y>-20&&s.y<H+20);
+ targets.forEach(t=>{t.phase+=.018;t.x+=Math.sin(t.phase)*.35;t.y+=Math.cos(t.phase*.8)*.25});
+ particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--});particles=particles.filter(p=>p.life>0);
+ if(targets.length===0){round++;credits+=100;spawn();hud();toast('라운드 완료! 보너스 100 크레딧')}
+}
+function draw(){
+ ctx.clearRect(0,0,W,H);ctx.fillStyle='#0b1422';ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='#17283d';ctx.lineWidth=1;for(let x=0;x<W;x+=42){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=42){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+ // decorative arena boundaries
+ ctx.strokeStyle='#29445c';ctx.lineWidth=3;ctx.strokeRect(18,18,W-36,H-36);
+ targets.forEach(t=>{ctx.save();ctx.translate(t.x,t.y);ctx.fillStyle='#f08c69';ctx.shadowColor='#f08c69';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(0,0,t.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#ffe1c9';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,t.r-6,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#301d2a';ctx.beginPath();ctx.arc(0,0,4,0,Math.PI*2);ctx.fill();ctx.restore()});
+ shots.forEach(s=>{ctx.fillStyle='#69f6df';ctx.shadowColor='#69f6df';ctx.shadowBlur=14;ctx.beginPath();ctx.arc(s.x,s.y,5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0});
+ particles.forEach(p=>{ctx.globalAlpha=p.life/24;ctx.fillStyle='#72f4d9';ctx.fillRect(p.x,p.y,3,3);ctx.globalAlpha=1});
+ let ang=Math.atan2(mouse.y-player.y,mouse.x-player.x);
+ ctx.save();ctx.translate(player.x,player.y);ctx.rotate(ang);ctx.fillStyle='#54e0c1';ctx.shadowColor='#54e0c1';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(0,0,player.crouch?12:15,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#d8fff8';ctx.fillRect(2,-4,23,8);ctx.restore();
+ // crosshair
+ ctx.strokeStyle='#d9fff7';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mouse.x,mouse.y,player.crouch?8:11,0,Math.PI*2);ctx.moveTo(mouse.x-16,mouse.y);ctx.lineTo(mouse.x-5,mouse.y);ctx.moveTo(mouse.x+5,mouse.y);ctx.lineTo(mouse.x+16,mouse.y);ctx.moveTo(mouse.x,mouse.y-16);ctx.lineTo(mouse.x,mouse.y-5);ctx.moveTo(mouse.x,mouse.y+5);ctx.lineTo(mouse.x,mouse.y+16);ctx.stroke();
+ if(player.crouch){ctx.fillStyle='#9fffee';ctx.font='12px system-ui';ctx.fillText('정밀 모드',player.x-28,player.y+31)}
+}
+function loop(){update();draw();requestAnimationFrame(loop)}loop();
+</script>
+</body></html>
