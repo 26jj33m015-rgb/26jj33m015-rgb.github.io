@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>다이아몬드 야구</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101827;color:#f4f7ff;font-family:system-ui,'Noto Sans KR',sans-serif;display:grid;place-items:center;min-height:100vh;padding:18px}
+.wrap{width:min(960px,100%)}header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}h1{font-size:clamp(24px,4vw,36px);margin:0}small{color:#aebbd2}
+.board{background:#182438;border:1px solid #33435e;border-radius:18px;padding:14px;box-shadow:0 18px 55px #0005}
+.score{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}.panel{background:#0d1727;border-radius:12px;padding:10px;text-align:center}.big{font-size:28px;font-weight:800}.label{font-size:12px;color:#aebbd2}
+canvas{display:block;width:100%;height:auto;border-radius:12px;background:#72b84e;touch-action:manipulation}
+.controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+button{border:0;border-radius:12px;padding:13px 20px;font-weight:800;font-size:16px;cursor:pointer;background:#ffd44d;color:#172033;box-shadow:0 4px 0 #bd9320}button.secondary{background:#dce7f8;box-shadow:0 4px 0 #9eafc9}button:active{transform:translateY(3px);box-shadow:none}
+.status{text-align:center;min-height:28px;margin:12px 0 4px;font-weight:700;color:#ffe27a}
+.instructions{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#b9c6dc;font-size:13px;margin-top:10px}
+</style></head>
+<body><main class="wrap"><header><div><h1>⚾ 다이아몬드 야구</h1><small>타이밍을 맞춰 홈런을 노려라!</small></div><button class="secondary" id="restart">새 경기</button></header>
+<section class="board"><div class="score"><div class="panel"><div class="label">이닝 · 공격</div><div class="big" id="inning">1회 초</div></div><div class="panel"><div class="label">점수</div><div class="big"><span id="runs">0</span> : <span id="opp">0</span></div></div><div class="panel"><div class="label">아웃 · 볼 · 스트라이크</div><div class="big" id="count">0 · 0 · 0</div></div></div>
+<canvas id="field" width="900" height="500" aria-label="야구 타격 게임"></canvas><div class="status" id="status">타격 버튼을 눌러 공을 쳐보세요!</div>
+<div class="controls"><button id="pitch">투구 받기</button><button id="swing">⚡ 타격!</button><button class="secondary" id="skip">다음 타자</button></div>
+<div class="instructions"><span>조작: 스페이스 / 클릭 = 타격</span><span>공이 타격존에 들어왔을 때 누르면 안타 확률 UP</span></div></section></main>
+<script>
+const c=document.getElementById('field'),ctx=c.getContext('2d');let pitch=null,balls=0,strikes=0,outs=0,runs=0,opp=0,inning=1,top=true,base=[false,false,false],last='준비 완료!';const $=id=>document.getElementById(id);
+function draw(){ctx.clearRect(0,0,900,500);ctx.fillStyle='#75bd53';ctx.fillRect(0,0,900,500);
+ctx.fillStyle='#43964a';ctx.beginPath();ctx.moveTo(450,70);ctx.lineTo(820,310);ctx.lineTo(450,470);ctx.lineTo(80,310);ctx.closePath();ctx.fill();
+ctx.fillStyle='#d9b47a';ctx.beginPath();ctx.moveTo(450,125);ctx.lineTo(700,310);ctx.lineTo(450,430);ctx.lineTo(200,310);ctx.closePath();ctx.fill();
+ctx.strokeStyle='#fff7dd';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(450,125);ctx.lineTo(700,310);ctx.lineTo(450,430);ctx.lineTo(200,310);ctx.closePath();ctx.stroke();
+[['2루',450,125],['3루',200,310],['1루',700,310]].forEach(([t,x,y])=>{ctx.fillStyle=base[t==='1루'?0:t==='2루'?1:2]?'#ffdc54':'#fff';ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI/4);ctx.fillRect(-13,-13,26,26);ctx.restore()});
+ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(450,430);ctx.lineTo(435,416);ctx.lineTo(435,399);ctx.lineTo(465,399);ctx.lineTo(465,416);ctx.closePath();ctx.fill();
+ctx.fillStyle='#142033';ctx.font='bold 20px system-ui';ctx.fillText('타격 존',32,40);ctx.strokeStyle='#ffffff88';ctx.lineWidth=3;ctx.strokeRect(320,180,260,190);
+ctx.fillStyle='#ffffff22';ctx.fillRect(320,180,260,190);
+if(pitch){ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(pitch.x,pitch.y,13,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#d94b45';ctx.lineWidth=3;ctx.stroke();ctx.fillStyle='#d94b45';ctx.fillRect(pitch.x-9,pitch.y-2,18,4)}
+ctx.fillStyle='#fff';ctx.font='bold 22px system-ui';ctx.fillText('HOME',415,480);
+}
+function update(){ $('inning').textContent=inning+'회 '+(top?'초':'말');$('runs').textContent=runs;$('opp').textContent=opp;$('count').textContent=outs+' · '+balls+' · '+strikes;$('status').textContent=last;draw()}
+function nextPitch(){if(outs>=3){outs=0;balls=0;strikes=0;base=[false,false,false];top=!top;if(top)inning++;last=top?inning+'회 초! 공격 시작':'수비 교대!';update();return}
+pitch={x:450+Math.random()*320-160,y:80+Math.random()*370};last='공이 날아옵니다—타이밍!';update()}
+function swing(){if(!pitch){nextPitch();return}let dx=pitch.x-450,dy=pitch.y-275,dist=Math.hypot(dx,dy);pitch=null;
+if(dist<95){let n=Math.random();if(n<.13){runs+=1+base.filter(Boolean).length;base=[true,true,true];last='홈런!! 주자와 함께 득점!'}else if(n<.48){advance(2);last='장타! 2루타!'}else{advance(1);last='안타! 출루 성공!'}balls=0;strikes=0}
+else if(dist<190){strikes++;last='파울 또는 헛스윙! 스트라이크';if(strikes>=3){outs++;strikes=0;balls=0;last='삼진 아웃!'}}
+else{strikes++;last='헛스윙!';if(strikes>=3){outs++;strikes=0;balls=0;last='삼진 아웃!'}}update()}
+function advance(n){for(let i=2;i>=0;i--){if(base[i]){if(i+n>=3)runs++;else base[i+n]=true;base[i]=false}}if(n<3)base[n-1]=true}
+function skip(){outs++;balls=0;strikes=0;pitch=null;last='타자 아웃 처리';update()}
+$('pitch').onclick=nextPitch;$('swing').onclick=swing;$('skip').onclick=skip;$('restart').onclick=()=>{pitch=null;balls=strikes=outs=runs=opp=0;inning=1;top=true;base=[false,false,false];last='새 경기가 시작됐어요!';update()};window.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();swing()}});c.onclick=swing;update();
+</script></body></html>
