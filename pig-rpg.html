@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>꼬마 돼지 키우기 RPG</title>
+<style>
+:root{--ink:#493c45;--pink:#ff9fb7;--cream:#fff8e9;--green:#87c987;--gold:#ffc85b}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(#bdeaff 0 35%,#d9f4c7 35%);font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:var(--ink);min-height:100vh}
+header{text-align:center;padding:22px 12px 12px}h1{margin:0;font-size:clamp(26px,5vw,42px);text-shadow:2px 3px #fff}header p{margin:7px 0}
+.wrap{max-width:1000px;margin:auto;padding:12px;display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+.panel{background:#fffaf0eF;border:4px solid #fff;border-radius:25px;padding:18px;box-shadow:0 8px 0 #7fbf8a}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#fff;border-radius:14px;padding:9px;text-align:center;font-weight:700}.stat small{display:block;font-size:12px;color:#85717c}.bar{height:12px;background:#eadde1;border-radius:20px;overflow:hidden;margin-top:6px}.bar span{display:block;height:100%;width:50%;background:var(--green);transition:width .3s}
+.farm{min-height:350px;position:relative;border-radius:20px;background:linear-gradient(#a9e5ff 0 52%,#91d77f 52%);overflow:hidden;margin:14px 0;border:3px solid #fff}
+.sun{position:absolute;right:25px;top:18px;font-size:42px}.cloud{position:absolute;left:35px;top:28px;font-size:38px}
+.pig{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);font-size:clamp(100px,18vw,165px);filter:drop-shadow(0 7px 0 #0002);transition:transform .25s;user-select:none}
+.pig.bounce{transform:translate(-50%,-58%) rotate(-5deg)}.pig-name{position:absolute;top:15px;left:15px;background:#fff;padding:7px 13px;border-radius:20px;font-weight:800}
+.bubble{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:#fff;border-radius:18px;padding:9px 14px;font-weight:700;max-width:90%;text-align:center}
+.controls{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.btn{border:0;border-radius:15px;padding:13px 8px;font-size:16px;font-weight:800;background:#ffb4c8;color:#553d48;box-shadow:0 4px #d77f9b;cursor:pointer;transition:transform .1s}.btn:active{transform:translateY(3px);box-shadow:0 1px #d77f9b}.btn.green{background:#a6dfa4;box-shadow:0 4px #68ae6a}.btn.gold{background:#ffda7e;box-shadow:0 4px #d8a844}.btn.blue{background:#a8d9ff;box-shadow:0 4px #6eadd8}
+h2{margin:0 0 12px;font-size:21px}.shop-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px dashed #dfcbd0}.shop-item:last-child{border:0}.buy{padding:8px 12px;border:0;border-radius:10px;background:#ffd56c;font-weight:800;cursor:pointer;color:#604a2a}
+.log{height:115px;overflow:auto;background:#fff;border-radius:13px;padding:10px;font-size:13px;margin-top:12px}.log p{margin:4px 0}.tiny{font-size:12px;opacity:.75}
+@media(max-width:700px){.wrap{grid-template-columns:1fr}.farm{min-height:300px}.stats{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>🐷 꼬마 돼지 키우기 RPG</h1><p>먹이고, 씻기고, 함께 놀며 최고의 돼지 농장을 만들어 봐!</p></header>
+<main class="wrap">
+<section class="panel">
+<div class="stats">
+<div class="stat">🪙 <span id="coins">50</span><small>골드</small></div>
+<div class="stat">⭐ Lv.<span id="level">1</span><small>돼지 레벨</small></div>
+<div class="stat">🌱 <span id="xp">0</span>/<span id="nextxp">30</span><small>경험치</small></div>
+</div>
+<div class="farm"><div class="sun">☀️</div><div class="cloud">☁️</div><div class="pig-name">🐽 <span id="nameLabel">꿀꿀이</span></div><div class="pig" id="pig">🐖</div><div class="bubble" id="message">안녕! 나를 돌봐 줘!</div></div>
+<div class="stats">
+<div class="stat">🍎 배부름<div class="bar"><span id="hungerBar"></span></div><small id="hunger">70</small></div>
+<div class="stat">🧼 깨끗함<div class="bar"><span id="cleanBar"></span></div><small id="clean">70</small></div>
+<div class="stat">💗 행복<div class="bar"><span id="happyBar"></span></div><small id="happy">70</small></div>
+</div>
+<h2 style="margin-top:16px">🎮 돌보기</h2>
+<div class="controls">
+<button class="btn green" onclick="act('feed')">🥕 먹이 주기 (-5G)</button>
+<button class="btn blue" onclick="act('wash')">🛁 씻겨 주기</button>
+<button class="btn" onclick="act('play')">⚽ 같이 놀기</button>
+<button class="btn gold" onclick="act('sleep')">💤 낮잠 재우기</button>
+<button class="btn green" onclick="act('train')">🎓 훈련하기 (-10G)</button>
+<button class="btn blue" onclick="renamePig()">✏️ 이름 바꾸기</button>
+</div>
+</section>
+<aside class="panel">
+<h2>🏡 농장 상점</h2>
+<div class="shop-item"><div>🌾 <b>고급 사료</b><div class="tiny">배부름 +35</div></div><button class="buy" onclick="buy('feed')">15G</button></div>
+<div class="shop-item"><div>🧴 <b>향기 비누</b><div class="tiny">깨끗함 +40</div></div><button class="buy" onclick="buy('soap')">12G</button></div>
+<div class="shop-item"><div>🧸 <b>귀여운 장난감</b><div class="tiny">행복 +35</div></div><button class="buy" onclick="buy('toy')">18G</button></div>
+<div class="shop-item"><div>🌿 <b>농장 꾸미기</b><div class="tiny">경험치 보너스 +10</div></div><button class="buy" onclick="buy('decor')">35G</button></div>
+<h2 style="margin-top:20px">📜 돼지 도감</h2>
+<div class="shop-item"><div>🐖 <b>아기 돼지</b><div class="tiny">Lv.1부터 함께해요</div></div><span>보유</span></div>
+<div class="shop-item"><div>🐷 <b>튼튼 돼지</b><div class="tiny">레벨 5 달성!</div></div><span id="strongStatus">🔒</span></div>
+<div class="shop-item"><div>🐗 <b>황금 돼지</b><div class="tiny">레벨 10 달성!</div></div><span id="goldStatus">🔒</span></div>
+<h2 style="margin-top:20px">📦 수확 & 기록</h2>
+<button class="btn gold" style="width:100%" onclick="sell()">🐽 건강한 돼지 수확하기 (+25G)</button>
+<p class="tiny">레벨 3 이상이고 모든 상태가 50 이상이면 수확 가능! 수확 후에도 모험은 계속돼.</p>
+<div class="log" id="log"><p>🌼 농장에 도착했어! 돼지를 잘 돌봐 줘.</p></div>
+<button class="btn" style="width:100%;margin-top:10px" onclick="resetGame()">🔄 새 게임</button>
+</aside>
+</main>
+<script>
+const defaults={coins:50,level:1,xp:0,hunger:70,clean:70,happy:70,name:"꿀꿀이",decor:0};
+let s={...defaults,...(function(){try{return JSON.parse(localStorage.getItem("pigRpgSave")||"{}")}catch(e){return {}}})()};
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem("pigRpgSave",JSON.stringify(s));render()}
+function log(t){let p=document.createElement("p");p.textContent=t;$("log").prepend(p)}
+function msg(t){$("message").textContent=t;$("pig").classList.add("bounce");setTimeout(()=>$("pig").classList.remove("bounce"),250)}
+function clamp(n){return Math.max(0,Math.min(100,n))}
+function addXP(n){s.xp+=n;while(s.xp>=s.level*30){s.xp-=s.level*30;s.level++;log("🎉 레벨 업! 돼지가 Lv."+s.level+"이 되었어!");msg("레벨 업! 더 멋진 돼지가 됐어!")} }
+function render(){
+["hunger","clean","happy"].forEach(k=>{s[k]=clamp(s[k]);$(k).textContent=Math.round(s[k]);$(k+"Bar").style.width=s[k]+"%"});
+$("coins").textContent=s.coins;$("level").textContent=s.level;$("xp").textContent=s.xp;$("nextxp").textContent=s.level*30;$("nameLabel").textContent=s.name;
+$("pig").textContent=s.level>=10?"🐗":s.level>=5?"🐷":"🐖";$("strongStatus").textContent=s.level>=5?"✅ 해금":"🔒";$("goldStatus").textContent=s.level>=10?"✅ 해금":"🔒";
+}
+function act(a){
+if(a==="feed"){if(s.coins<5)return msg("골드가 부족해!");s.coins-=5;s.hunger+=22;s.happy+=3;addXP(5);msg("냠냠! 맛있는 당근이야!");}
+if(a==="wash"){s.clean+=30;s.happy+=5;addXP(6);msg("뽀득뽀득 깨끗해졌어!");}
+if(a==="play"){if(s.hunger<15)return msg("배가 너무 고파서 놀기 힘들어.");s.happy+=22;s.hunger-=9;s.clean-=5;addXP(10);msg("신나게 뛰어놀았어!");}
+if(a==="sleep"){s.hunger-=8;s.happy+=8;addXP(4);msg("쿨쿨… 기운이 회복됐어.");}
+if(a==="train"){if(s.coins<10)return msg("훈련비 10골드가 필요해!");s.coins-=10;s.hunger-=8;s.happy-=3;addXP(18);msg("멋진 훈련 성공!");}
+save()
+}
+function buy(item){let price={feed:15,soap:12,toy:18,decor:35}[item];if(s.coins<price){msg("골드가 부족해!");return}s.coins-=price;
+if(item==="feed"){s.hunger+=35;msg("고급 사료를 먹었어!")}if(item==="soap"){s.clean+=40;msg("향기로운 비누로 씻었어!")}if(item==="toy"){s.happy+=35;msg("새 장난감이 마음에 들어!")}if(item==="decor"){s.decor++;addXP(12);msg("농장이 예쁘게 꾸며졌어!")}
+save();log("🛍️ 상점에서 아이템을 사용했어.")
+}
+function sell(){if(s.level<3||s.hunger<50||s.clean<50||s.happy<50){msg("Lv.3 이상, 모든 상태 50 이상이 필요해!");return}s.coins+=25+s.level*3;addXP(15);s.hunger-=12;msg("수확 보상을 받았어! 계속 키워 보자.");log("🪙 수확 보상 +"+(25+s.level*3)+"골드");save()}
+function renamePig(){let n=prompt("돼지의 새 이름을 입력해 줘!",s.name);if(n&&n.trim()){s.name=n.trim().slice(0,12);save();msg("이름이 바뀌었어!")}}
+function resetGame(){if(confirm("저장된 농장 데이터를 지우고 새로 시작할까?")){s={...defaults};save();$("log").innerHTML="<p>🌼 새 농장을 시작했어!</p>";msg("새 친구를 잘 돌봐 줘!")}}
+render();
+</script>
+</body></html>
